@@ -14,7 +14,7 @@ app.use(express.json());
 app.use("/api", linkRoutes);
 
 app.get("/", (req, res) => {
-  res.send("Hello from your backend! 🚀");
+  res.send("Hello from your backend! 🚀 - CI/CD Working");
 });
 
 mongoose
