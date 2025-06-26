@@ -15,11 +15,15 @@ jobs:
         uses: webfactory/ssh-agent@v0.8.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # Add this if your key has a passphrase
+          # ssh-passphrase: ${{ secrets.SSH_PASSPHRASE }}
 
       - name: Add VPS Host to known_hosts
         run: |
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
           ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
 
       - name: Deploy with rsync
         run: |
@@ -27,7 +31,7 @@ jobs:
 
       - name: Install dependencies & restart backend
         run: |
-          ssh root@${{ secrets.SERVER_IP }} << 'EOF'
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} << 'EOF'
             cd /home/pdfbackend
             npm install --production
             pm2 restart pdfviewerbe || pm2 start server.js --name pdfviewerbe
