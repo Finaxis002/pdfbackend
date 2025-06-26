@@ -11,25 +11,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install SSH key
+      - name: Set up SSH key
         uses: webfactory/ssh-agent@v0.8.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Add SSH Host Key to Known Hosts
+      - name: Add VPS Host to known_hosts
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
-      - name: Deploy to VPS
+      - name: Deploy with rsync
         run: |
-          rsync -avz --delete ./ root@${{ secrets.SERVER_IP }}:/home/pdfbackend
+          rsync -az --delete --exclude=".git*" --exclude="node_modules" ./ root@${{ secrets.SERVER_IP }}:/home/pdfbackend
 
-      - name: Restart backend with PM2
+      - name: Install dependencies & restart backend
         run: |
           ssh root@${{ secrets.SERVER_IP }} << 'EOF'
             cd /home/pdfbackend
-            npm install
+            npm install --production
             pm2 restart pdfviewerbe || pm2 start server.js --name pdfviewerbe
             pm2 save
           EOF
