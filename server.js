@@ -6,6 +6,8 @@ const linkRoutes = require("./routes/linkRoutes");
 
 const app = express();
 
+app.options("*", cors());
+
 app.use(cors({
   origin: "*",
   exposedHeaders: ["Content-Disposition"]
@@ -14,7 +16,7 @@ app.use(express.json());
 app.use("/api", linkRoutes);
 
 app.get("/", (req, res) => {
-  res.send("Hello from your backend! 🚀 - CI/CD Working !!!!!!!");
+  res.send("Hello from your backend! 🚀 - * added");
 });
 
 mongoose
