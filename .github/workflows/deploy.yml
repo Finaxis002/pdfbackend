@@ -1,35 +1,35 @@
-name: Deploy Backend to VPS
+name: Deploy to VPS
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up SSH key
-        uses: webfactory/ssh-agent@v0.8.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: Add VPS Host to known_hosts
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy with rsync
+      - name: Rsync files to VPS
         run: |
-          rsync -az --delete --exclude=".git*" --exclude="node_modules" ./ root@${{ secrets.SERVER_IP }}:/home/pdfbackend
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no" \
+            ./ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/home/pdfbackend
 
-      - name: Install dependencies & restart backend
+      - name: Install dependencies & restart app
         run: |
-          ssh root@${{ secrets.SERVER_IP }} << 'EOF'
-            cd /home/pdfbackend
-            npm install --production
-            pm2 restart pdfviewerbe || pm2 start server.js --name pdfviewerbe
-            pm2 save
-          EOF
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            cd /home/pdfbackend &&
+            npm install &&
+            pm2 restart all || pm2 start server.js --name pdfviewerbe
+          "
