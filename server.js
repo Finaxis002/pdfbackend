@@ -6,12 +6,15 @@ const linkRoutes = require("./routes/linkRoutes");
 
 const app = express();
 
-app.options("*", cors());
+// app.options("*", cors());
 
-app.use(cors({
-  origin: "*",
-  exposedHeaders: ["Content-Disposition"]
-}));
+const corsOptions = {
+  origin: "*", // Allow all origins for testing
+  credentials: true,
+};
+
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use("/api", linkRoutes);
 
