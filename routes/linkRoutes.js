@@ -39,6 +39,7 @@ router.get("/all-links", async (req, res) => {
   const linksWithStatus = links.map((link) => ({
     id: link.id,
     name: link.name,
+    username: link.username,
     fileName: link.fileName,
     password: link.password,
     startTime: link.startTime,
