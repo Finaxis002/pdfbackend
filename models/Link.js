@@ -9,6 +9,7 @@ const LinkSchema = new mongoose.Schema({
   endTime: Number,
   filePath: String,
   status: { type: String, default: "Pending" }, // new field
+  username: { type: String } // new field
 }, {
   timestamps: true
 });
