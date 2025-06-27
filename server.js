@@ -19,7 +19,7 @@ app.use(express.json());
 app.use("/api", linkRoutes);
 
 app.get("/", (req, res) => {
-  res.send("Hello from your backend! 🚀 - * added");
+  res.send("Hello from your backend! 🚀 - pdf locked on mobile view ");
 });
 
 mongoose

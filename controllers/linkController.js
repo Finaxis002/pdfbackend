@@ -29,6 +29,16 @@ exports.uploadPDF = async (req, res) => {
 
 // Serve PDF
 exports.servePDF = async (req, res) => {
+  // 1. User-Agent detection (BLOCK mobile/tablet)
+  const ua = req.headers['user-agent']?.toLowerCase() || "";
+  // This covers most mobile/tablet user-agents, even in "desktop mode"
+  const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i.test(ua);
+
+  if (isMobile) {
+    return res
+      .status(403)
+      .send("PDF viewing is not allowed on mobile or tablet devices. Please use a desktop/laptop browser.");
+  }
   const link = await Link.findOne({ id: req.params.id });
   if (!link) return res.status(404).send("Not found");
   res.sendFile(path.resolve(link.filePath));
