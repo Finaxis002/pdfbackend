@@ -77,4 +77,35 @@ router.delete("/link/:id", async (req, res) => {
   res.json({ success: true });
 });
 
+
+router.post("/validate-login", async (req, res) => {
+  const { username, password, linkId } = req.body;
+
+  // Validate input
+  if (!username || !password || !linkId) {
+    return res.status(400).json({ success: false, message: "Missing parameters" });
+  }
+
+  // Find the link record with this username and linkId
+  const link = await Link.findOne({ username, id: linkId });
+
+  if (!link) {
+    return res.status(401).json({ success: false, message: "Invalid username or link not found" });
+  }
+
+  // For demo: plaintext comparison (improve with hash in production)
+  if (link.password !== password) {
+    return res.status(401).json({ success: false, message: "Incorrect password" });
+  }
+
+  // Optionally: check if the link is active
+  const now = Date.now();
+  if (now < link.startTime || now > link.endTime) {
+    return res.status(403).json({ success: false, message: "Link not active or expired" });
+  }
+
+  return res.status(200).json({ success: true });
+});
+
+
 module.exports = router;
