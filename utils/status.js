@@ -1,8 +1,14 @@
 // utils/status.js
-function computeStatus(startTime, endTime) {
-  const now = Date.now();
-  if (now < startTime) return "Pending";
-  if (now > endTime) return "Expired";
-  return "Active";
+function computeStatus(link) {
+  if (link.mode === "duration") {
+    if (!link.firstAccessTime) return "Pending";
+    const expireAt = link.firstAccessTime + link.durationMinutes * 60 * 1000;
+    return Date.now() > expireAt ? "Expired" : "Active";
+  } else {
+    const now = Date.now();
+    if (now < link.startTime) return "Pending";
+    if (now > link.endTime) return "Expired";
+    return "Active";
+  }
 }
 module.exports = { computeStatus };
