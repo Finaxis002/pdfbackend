@@ -4,19 +4,12 @@ const { computeStatus } = require("../utils/status");
 const fs = require("fs");
 
 
-// function computeStatus(link) {
-//   if (link.mode === "duration") {
-//     if (!link.firstAccessTime) return "Pending";
-//     const expireAt = link.firstAccessTime + link.durationMinutes * 60 * 1000;
-//     return Date.now() > expireAt ? "Expired" : "Active";
-//   } else {
-//     const now = Date.now();
-//     if (now < link.startTime) return "Pending";
-//     if (now > link.endTime) return "Expired";
-//     return "Active";
-//   }
-// }
-
+async function markFirstAccess(link) {
+  if (link.mode === "duration" && !link.firstAccessTime) {
+    link.firstAccessTime = Date.now();
+    await link.save();
+  }
+}
 
 // Create/upload link
 exports.uploadPDF = async (req, res) => {
@@ -106,7 +99,7 @@ exports.servePDF = async (req, res) => {
   }
   link.accessLog.push({
     timestamp: Date.now(),
-    username: req.body.username || "unknown",
+     username: (req.body && req.body.username) ? req.body.username : "unknown",
   });
   await link.save();
 
@@ -124,6 +117,9 @@ exports.getLinkMeta = async (req, res) => {
     link.status = currentStatus;
     await link.save();
   }
+
+    // ADD THIS LINE
+  await markFirstAccess(link);
 
   res.json({
     id: link.id,
