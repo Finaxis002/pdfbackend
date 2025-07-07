@@ -26,38 +26,6 @@ router.get("/file/:id", linkController.servePDF);
 // GET /api/link/:id
 router.get("/link/:id", linkController.getLinkMeta);
 
-// router.get("/all-links", async (req, res) => {
-//   let links = await Link.find();
-
-//   // Update statuses in DB if necessary
-//   await Promise.all(
-//     links.map(async (link) => {
-//       const newStatus = computeStatus(link.startTime, link.endTime);
-//       if (link.status !== newStatus) {
-//         link.status = newStatus;
-//         await link.save();
-//       }
-//     })
-//   );
-
-//   // Fetch updated links
-//   links = await Link.find();
-
-//   const linksWithStatus = links.map((link) => ({
-//     id: link.id,
-//     name: link.name,
-//     username: link.username,
-//     fileName: link.fileName,
-//     password: link.password,
-//     startTime: link.startTime,
-//     endTime: link.endTime,
-//     status: link.status,
-//     createdAt: link.createdAt,
-//     updatedAt: link.updatedAt,
-//   }));
-//   res.json({ links: linksWithStatus });
-// });
-
 
 
 

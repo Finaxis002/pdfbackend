@@ -3,7 +3,6 @@ const path = require("path");
 const { computeStatus } = require("../utils/status");
 const fs = require("fs");
 
-
 async function markFirstAccess(link) {
   if (link.mode === "duration" && !link.firstAccessTime) {
     link.firstAccessTime = Date.now();
@@ -63,17 +62,30 @@ exports.servePDF = async (req, res) => {
   console.log("User-Agent:", ua);
 
   // 2. Only allow certain desktop OS
-  const isDesktop =
-    /windows nt|macintosh|linux x86_64|x11/.test(ua) &&
-    !/mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini|tablet|touch|webos|fennec|windows phone|kindle|silk/i.test(
+  // const isDesktop =
+  //   /windows nt|macintosh|linux x86_64|x11/.test(ua) &&
+  //   !/mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini|tablet|touch|webos|fennec|windows phone|kindle|silk/i.test(
+  //     ua
+  //   );
+
+  // if (!isDesktop) {
+  //   return res
+  //     .status(403)
+  //     .send("PDF viewing is allowed only on desktop/laptop browsers.");
+  // }
+
+  // Only block mobile/tablet user agents, allow everything else
+  const isMobile =
+    /mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini|tablet|touch|webos|fennec|windows phone|kindle|silk/i.test(
       ua
     );
 
-  if (!isDesktop) {
+  if (isMobile) {
     return res
       .status(403)
       .send("PDF viewing is allowed only on desktop/laptop browsers.");
   }
+  // No need for an "isDesktop" check – just block what you KNOW is not desktop.
 
   const link = await Link.findOne({ id: req.params.id });
   if (!link) return res.status(404).send("Not found");
@@ -99,7 +111,7 @@ exports.servePDF = async (req, res) => {
   }
   link.accessLog.push({
     timestamp: Date.now(),
-     username: (req.body && req.body.username) ? req.body.username : "unknown",
+    username: req.body && req.body.username ? req.body.username : "unknown",
   });
   await link.save();
 
@@ -110,7 +122,7 @@ exports.servePDF = async (req, res) => {
 exports.getLinkMeta = async (req, res) => {
   const link = await Link.findOne({ id: req.params.id });
   if (!link) return res.status(404).send("Not found");
-    const currentStatus = computeStatus(link);
+  const currentStatus = computeStatus(link);
 
   // If status in DB is outdated, update it
   if (link.status !== currentStatus) {
@@ -118,7 +130,7 @@ exports.getLinkMeta = async (req, res) => {
     await link.save();
   }
 
-    // ADD THIS LINE
+  // ADD THIS LINE
   await markFirstAccess(link);
 
   res.json({
