@@ -122,17 +122,17 @@ exports.servePDF = async (req, res) => {
 exports.getLinkMeta = async (req, res) => {
   const link = await Link.findOne({ id: req.params.id });
   if (!link) return res.status(404).send("Not found");
+  
   const currentStatus = computeStatus(link);
-
-  // If status in DB is outdated, update it
+  
+  // Update status if needed (but don't set firstAccessTime here)
   if (link.status !== currentStatus) {
     link.status = currentStatus;
     await link.save();
   }
 
-  // ADD THIS LINE
-  await markFirstAccess(link);
-
+  // REMOVE the markFirstAccess call from here
+  
   res.json({
     id: link.id,
     name: link.name,
@@ -142,7 +142,7 @@ exports.getLinkMeta = async (req, res) => {
     startTime: link.startTime,
     endTime: link.endTime,
     durationMinutes: link.durationMinutes,
-    firstAccessTime: link.firstAccessTime,
+    firstAccessTime: link.firstAccessTime, // Will be null until login
     mode: link.mode,
     status: link.status,
     createdAt: link.createdAt,

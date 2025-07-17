@@ -7,12 +7,6 @@ const { computeStatus } = require("../utils/status");
 const fs = require("fs");
 const path = require("path");
 
-async function markFirstAccess(link) {
-  if (link.mode === "duration" && !link.firstAccessTime) {
-    link.firstAccessTime = Date.now();
-    await link.save();
-  }
-}
 
 
 const upload = multer({ dest: "uploads/" });
@@ -97,6 +91,36 @@ router.delete("/link/:id", async (req, res) => {
 });
 
 
+// router.post("/validate-login", async (req, res) => {
+//   const { username, password, linkId } = req.body;
+
+//   // Validate input
+//   if (!username || !password || !linkId) {
+//     return res.status(400).json({ success: false, message: "Missing parameters" });
+//   }
+
+//   // Find the link record with this username and linkId
+//   const link = await Link.findOne({ username, id: linkId });
+
+//   if (!link) {
+//     return res.status(401).json({ success: false, message: "Invalid username or link not found" });
+//   }
+
+//   // For demo: plaintext comparison (improve with hash in production)
+//   if (link.password !== password) {
+//     return res.status(401).json({ success: false, message: "Incorrect password" });
+//   }
+
+//   // Optionally: check if the link is active
+//   const now = Date.now();
+//   if (now < link.startTime || now > link.endTime) {
+//     return res.status(403).json({ success: false, message: "Link not active or expired" });
+//   }
+
+//   return res.status(200).json({ success: true });
+// });
+
+
 router.post("/validate-login", async (req, res) => {
   const { username, password, linkId } = req.body;
 
@@ -105,25 +129,33 @@ router.post("/validate-login", async (req, res) => {
     return res.status(400).json({ success: false, message: "Missing parameters" });
   }
 
-  // Find the link record with this username and linkId
+  // Find the link record
   const link = await Link.findOne({ username, id: linkId });
-
   if (!link) {
     return res.status(401).json({ success: false, message: "Invalid username or link not found" });
   }
 
-  // For demo: plaintext comparison (improve with hash in production)
+  // Check password
   if (link.password !== password) {
     return res.status(401).json({ success: false, message: "Incorrect password" });
   }
 
-  // Optionally: check if the link is active
-  const now = Date.now();
-  if (now < link.startTime || now > link.endTime) {
-    return res.status(403).json({ success: false, message: "Link not active or expired" });
+  // For duration mode links, set firstAccessTime if not already set
+  if (link.mode === "duration" && !link.firstAccessTime) {
+    link.firstAccessTime = Date.now();
+    await link.save();
   }
 
-  return res.status(200).json({ success: true });
+  // Check link status
+  const status = computeStatus(link);
+  if (status === "Expired") {
+    return res.status(403).json({ success: false, message: "Link has expired" });
+  }
+
+  return res.status(200).json({ 
+    success: true,
+    firstAccessTime: link.firstAccessTime // Send back the access time
+  });
 });
 
 
