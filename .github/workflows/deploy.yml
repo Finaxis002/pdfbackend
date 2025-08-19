@@ -26,13 +26,14 @@ jobs:
           chmod 644 ~/.ssh/known_hosts
 
       - name: Deploy with rsync
-        run: |
-          rsync -az --delete \
-          --exclude=".git*" \
-          --exclude="node_modules" \
-          --exclude="uploads/***" \
-          --exclude="library-uploads/***" \
-          pdfbackend/ root@${{ secrets.SERVER_IP }}:/home/pdfbackend/
+  run: |
+    rsync -az --delete \
+      --exclude=".git*" \
+      --exclude="node_modules" \
+      --exclude="uploads/***" \
+      --exclude="library-uploads/***" \
+      backend/ root@${{ secrets.SERVER_IP }}:/home/pdfbackend/
+
 
       - name: Install dependencies & restart backend
         run: |
