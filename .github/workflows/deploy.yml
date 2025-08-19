@@ -7,39 +7,54 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up SSH key
         uses: webfactory/ssh-agent@v0.8.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-          # Add this if your key has a passphrase
-          # ssh-passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          # ssh-passphrase: ${{ secrets.SSH_PASSPHRASE }}  # uncomment if needed
 
-      - name: Add VPS Host to known_hosts
+      - name: Add VPS host to known_hosts
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-      - name: Deploy with rsync
-  run: |
-    rsync -az --delete \
-      --exclude=".git*" \
-      --exclude="node_modules" \
-      --exclude="uploads/***" \
-      --exclude="library-uploads/***" \
-      backend/ root@${{ secrets.SERVER_IP }}:/home/pdfbackend/
+      - name: Prepare remote directory
+        run: |
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} "mkdir -p /home/pdfbackend"
 
+      - name: Deploy with rsync (exclude uploads)
+        run: |
+          rsync -az --delete \
+            --exclude=".git*" \
+            --exclude="node_modules" \
+            --exclude="uploads/***" \
+            --exclude="library-uploads/***" \
+            ./ root@${{ secrets.SERVER_IP }}:/home/pdfbackend/
 
       - name: Install dependencies & restart backend
         run: |
           ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} << 'EOF'
+            set -e
             cd /home/pdfbackend
-            npm install --production
-            pm2 restart pdfviewerbe || pm2 start server.js --name pdfviewerbe
+
+            # Ensure persistent upload dirs exist (kept across deploys)
+            mkdir -p uploads library-uploads
+
+            # Install production deps (fast) - fall back if CI not supported
+            npm ci --omit=dev || npm install --production
+
+            # Start or reload with PM2
+            pm2 describe pdfviewerbe >/dev/null 2>&1 \
+              && pm2 reload pdfviewerbe \
+              || pm2 start server.js --name pdfviewerbe
+
             pm2 save
           EOF
