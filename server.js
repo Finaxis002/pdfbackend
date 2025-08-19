@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const linkRoutes = require("./routes/linkRoutes");
+const libraryRouter = require("./routes/library");
 
 const app = express();
 
@@ -17,6 +18,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use("/api", linkRoutes);
+app.use("/api/library", libraryRouter);
 
 app.get("/", (req, res) => {
   res.send("Hello from your backend! 🚀 - duration changes reflected");

@@ -11,40 +11,39 @@ async function markFirstAccess(link) {
 }
 
 // Create/upload link
+// controllers/linkController.js
+
 exports.uploadPDF = async (req, res) => {
   try {
     const { originalname, path: filePath } = req.file;
     const {
-      name,
-      password,
-      startTime,
-      endTime,
-      username,
-      mode,
-      durationMinutes,
+      name, password, startTime, endTime, username, mode, durationMinutes,
     } = req.body;
+
     const id = Math.random().toString(36).substr(2, 9);
-    let status = "Pending";
-    let linkDoc = {
+
+    const linkDoc = {
       id,
       name,
       username,
       fileName: originalname,
       password,
       filePath,
+      pdfSource: "ephemeral",                  // ← make it explicit
       mode: mode || "window",
       accessLog: [],
     };
-    if (mode === "duration") {
+
+    if (linkDoc.mode === "duration") {
       linkDoc.durationMinutes = Number(durationMinutes);
-      linkDoc.firstAccessTime = null;
-      linkDoc.status = "Pending";
+      linkDoc.firstAccessTime = 0;             // use 0 instead of null
     } else {
       linkDoc.startTime = Number(startTime);
       linkDoc.endTime = Number(endTime);
-      linkDoc.status = computeStatus(Number(startTime), Number(endTime));
     }
-    // linkDoc.status = status;
+
+    // keep status assignment consistent with the rest of your app
+    linkDoc.status = require("../utils/status").computeStatus(linkDoc);
 
     await Link.create(linkDoc);
     res.json({ link: `/view/${id}` });
@@ -53,69 +52,121 @@ exports.uploadPDF = async (req, res) => {
   }
 };
 
+
 // Serve PDF
 
+// exports.servePDF = async (req, res) => {
+//   const ua = req.headers["user-agent"]?.toLowerCase() || "";
+
+//   // 1. Log all user agents for analysis
+//   console.log("User-Agent:", ua);
+
+
+//   const isMobile =
+//     /mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini|tablet|touch|webos|fennec|kindle|silk/i.test(
+//       ua
+//     );
+
+//   if (isMobile) {
+//     return res
+//       .status(403)
+//       .send("PDF viewing is allowed only on desktop/laptop browsers.");
+//   }
+//   // No need for an "isDesktop" check – just block what you KNOW is not desktop.
+
+//   const link = await Link.findOne({ id: req.params.id });
+//   if (!link) return res.status(404).send("Not found");
+
+//   const filePath = path.resolve(link.filePath);
+//   if (!fs.existsSync(filePath)) {
+//     return res.status(404).send("PDF file not found on server.");
+//   }
+
+//   if (link.mode === "duration") {
+//     if (!link.firstAccessTime) {
+//       link.firstAccessTime = Date.now();
+//       await link.save();
+//     }
+//     const expireTime = link.firstAccessTime + link.durationMinutes * 60 * 1000;
+//     if (Date.now() > expireTime) {
+//       return res.status(403).send("Link expired.");
+//     }
+//   } else {
+//     if (Date.now() < link.startTime || Date.now() > link.endTime) {
+//       return res.status(403).send("Link not active or expired.");
+//     }
+//   }
+//   link.accessLog.push({
+//     timestamp: Date.now(),
+//     username: req.body && req.body.username ? req.body.username : "unknown",
+//   });
+//   await link.save();
+
+//   res.sendFile(filePath);
+// };
+
+
 exports.servePDF = async (req, res) => {
-  const ua = req.headers["user-agent"]?.toLowerCase() || "";
+  try {
+    const ua = (req.headers["user-agent"] || "").toLowerCase();
+    const isMobilePhone = /android|iphone|ipod|blackberry|iemobile|opera mini|fennec|windows phone/i.test(ua);
+    const isTablet = /ipad|tablet|playbook|silk|kindle/i.test(ua) && !/mobile|phone/i.test(ua);
+    const isDesktop = /windows nt|macintosh|linux/i.test(ua) && !isMobilePhone && !isTablet;
 
-  // 1. Log all user agents for analysis
-  console.log("User-Agent:", ua);
+    if (isMobilePhone && !isTablet && !isDesktop) {
+      return res.status(403).send("PDF viewing is allowed only on desktop, laptop, or tablet browsers.");
+    }
 
-  // 2. Only allow certain desktop OS
-  // const isDesktop =
-  //   /windows nt|macintosh|linux x86_64|x11/.test(ua) &&
-  //   !/mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini|tablet|touch|webos|fennec|windows phone|kindle|silk/i.test(
-  //     ua
-  //   );
+    // find by custom id first, then by _id; populate library ref
+    let link = await Link.findOne({ id: req.params.id }).populate("libraryPdfId");
+    if (!link) link = await Link.findById(req.params.id).populate("libraryPdfId");
+    if (!link) return res.status(404).send("Not found");
 
-  // if (!isDesktop) {
-  //   return res
-  //     .status(403)
-  //     .send("PDF viewing is allowed only on desktop/laptop browsers.");
-  // }
-
-  // Only block mobile/tablet user agents, allow everything else
-  const isMobile =
-    /mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini|tablet|touch|webos|fennec|windows phone|kindle|silk/i.test(
-      ua
-    );
-
-  if (isMobile) {
-    return res
-      .status(403)
-      .send("PDF viewing is allowed only on desktop/laptop browsers.");
-  }
-  // No need for an "isDesktop" check – just block what you KNOW is not desktop.
-
-  const link = await Link.findOne({ id: req.params.id });
-  if (!link) return res.status(404).send("Not found");
-
-  const filePath = path.resolve(link.filePath);
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).send("PDF file not found on server.");
-  }
-
-  if (link.mode === "duration") {
-    if (!link.firstAccessTime) {
+    // update firstAccessTime for duration links on first open
+    if (link.mode === "duration" && !link.firstAccessTime) {
       link.firstAccessTime = Date.now();
       await link.save();
     }
-    const expireTime = link.firstAccessTime + link.durationMinutes * 60 * 1000;
-    if (Date.now() > expireTime) {
-      return res.status(403).send("Link expired.");
-    }
-  } else {
-    if (Date.now() < link.startTime || Date.now() > link.endTime) {
-      return res.status(403).send("Link not active or expired.");
-    }
-  }
-  link.accessLog.push({
-    timestamp: Date.now(),
-    username: req.body && req.body.username ? req.body.username : "unknown",
-  });
-  await link.save();
 
-  res.sendFile(filePath);
+    // check status (window or duration)
+    const statusNow = computeStatus(link);
+    if (statusNow === "Expired" || statusNow === "Pending") {
+      const msg = statusNow === "Expired" ? "Link expired." : "Link not active yet.";
+      return res.status(403).send(msg);
+    }
+
+    // choose the correct file path
+    let filePath = link.pdfSource === "library"
+      ? (link.libraryPdfId && link.libraryPdfId.filePath)
+      : link.filePath;
+
+    if (!filePath) {
+      return res.status(404).send("File path missing for this link.");
+    }
+
+    // make absolute path safely
+    const absPath = path.isAbsolute(filePath)
+      ? filePath
+      : path.join(process.cwd(), filePath);
+
+    if (!fs.existsSync(absPath)) {
+      return res.status(404).send("PDF file not found on server.");
+    }
+
+    // (optional) log access – GET has no body, so username may be unknown
+    link.accessLog.push({
+      timestamp: Date.now(),
+      username: (req.query && req.query.username) || "unknown",
+    });
+    await link.save();
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="${path.basename(absPath)}"`);
+    res.sendFile(absPath);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Internal server error.");
+  }
 };
 
 // Get link metadata

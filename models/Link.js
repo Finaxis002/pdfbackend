@@ -14,6 +14,10 @@ const LinkSchema = new mongoose.Schema(
     durationMinutes: Number, // null/undefined if not using duration mode
     firstAccessTime: Number, // when the user first accesses the link (ms timestamp)
     mode: { type: String, enum: ["window", "duration"], default: "window" }, // distinguish mode
+    // models/Link.js  (add these fields to your existing schema)
+    pdfSource: { type: String, enum: ["ephemeral", "library"], default: "ephemeral" },
+    libraryPdfId: { type: mongoose.Schema.Types.ObjectId, ref: "LibraryPdf" },
+
     accessLog: [
       {
         // for tracking

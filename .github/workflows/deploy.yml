@@ -27,7 +27,12 @@ jobs:
 
       - name: Deploy with rsync
         run: |
-          rsync -az --delete --exclude=".git*" --exclude="node_modules" ./ root@${{ secrets.SERVER_IP }}:/home/pdfbackend
+          rsync -az --delete \
+          --exclude=".git*" \
+          --exclude="node_modules" \
+          --exclude="uploads/***" \
+          --exclude="library-uploads/***" \
+          pdfbackend/ root@${{ secrets.SERVER_IP }}:/home/pdfbackend/
 
       - name: Install dependencies & restart backend
         run: |

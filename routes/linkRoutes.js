@@ -64,30 +64,28 @@ router.get("/all-links", async (req, res) => {
 
 
 
+// routes/links.js (delete handler snippet)
 router.delete("/link/:id", async (req, res) => {
-  const Link = require("../models/Link");
-  const link = await Link.findOne({ id: req.params.id });
-  
-  if (!link) {
-    return res.status(404).json({ success: false, message: "Link not found" });
+  try {
+    const id = req.params.id;
+    let link = await Link.findOne({ id });
+    if (!link) link = await Link.findById(id);
+    if (!link) return res.status(404).json({ message: "Not found" });
+
+    // If ephemeral, optionally delete its file from /ephemeral-uploads
+    if (link.pdfSource !== "library") {
+      try {
+        if (link.filePath && fs.existsSync(link.filePath)) {
+          fs.unlinkSync(link.filePath);
+        }
+      } catch (_) {}
+    }
+
+    await link.deleteOne();
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ message: e.message });
   }
-
-  // Delete the file if it exists
-  if (link.filePath) {
-    // Handle both / and \ in file paths
-    const filePath = path.resolve(link.filePath);
-    fs.unlink(filePath, (err) => {
-      // Log but don't fail on file not found
-      if (err && err.code !== "ENOENT") {
-        console.error("Failed to delete file:", filePath, err);
-      }
-    });
-  }
-
-  // Delete the DB document
-  await Link.deleteOne({ id: req.params.id });
-
-  res.json({ success: true });
 });
 
 
