@@ -18,6 +18,11 @@ const LinkSchema = new mongoose.Schema(
     pdfSource: { type: String, enum: ["ephemeral", "library"], default: "ephemeral" },
     libraryPdfId: { type: mongoose.Schema.Types.ObjectId, ref: "LibraryPdf" },
 
+    // NEW: housekeeping
+    expireAt: { type: Date, default: null },     // when link actually expires
+    deleteAfter: { type: Date, default: null },  // expireAt + 7 days
+
+
     accessLog: [
       {
         // for tracking

@@ -141,6 +141,9 @@ router.post("/validate-login", async (req, res) => {
   // For duration mode links, set firstAccessTime if not already set
   if (link.mode === "duration" && !link.firstAccessTime) {
     link.firstAccessTime = Date.now();
+      const expireMs = link.firstAccessTime + (link.durationMinutes || 0) * 60 * 1000;
+  link.expireAt = new Date(expireMs);
+  link.deleteAfter = new Date(expireMs + 7 * 24 * 60 * 60 * 1000);
     await link.save();
   }
 

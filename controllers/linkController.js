@@ -36,14 +36,25 @@ exports.uploadPDF = async (req, res) => {
 
     if (linkDoc.mode === "duration") {
       linkDoc.durationMinutes = Number(durationMinutes);
-      linkDoc.firstAccessTime = 0;             // use 0 instead of null
+      linkDoc.firstAccessTime = 0;  // not opened yet
+      linkDoc.expireAt = null;      // determined on first open
+      linkDoc.deleteAfter = null;
     } else {
-      linkDoc.startTime = Number(startTime);
-      linkDoc.endTime = Number(endTime);
+      const start = Number(startTime);
+      const end = Number(endTime);
+      linkDoc.startTime = start;
+      linkDoc.endTime = end;
+
+      // For window mode we already know the expiry and cleanup time
+      linkDoc.expireAt = new Date(end);
+      linkDoc.deleteAfter = new Date(end + 7 * 24 * 60 * 60 * 1000);
     }
+
 
     // keep status assignment consistent with the rest of your app
     linkDoc.status = require("../utils/status").computeStatus(linkDoc);
+
+
 
     await Link.create(linkDoc);
     res.json({ link: `/view/${id}` });
@@ -122,9 +133,15 @@ exports.servePDF = async (req, res) => {
     if (!link) link = await Link.findById(req.params.id).populate("libraryPdfId");
     if (!link) return res.status(404).send("Not found");
 
-    // update firstAccessTime for duration links on first open
+   // If duration link is opened for the first time, set firstAccessTime + housekeeping
     if (link.mode === "duration" && !link.firstAccessTime) {
       link.firstAccessTime = Date.now();
+
+      // compute expireAt/deleteAfter on first open
+      const expireMs = link.firstAccessTime + (link.durationMinutes || 0) * 60 * 1000;
+      link.expireAt = new Date(expireMs);
+      link.deleteAfter = new Date(expireMs + 7 * 24 * 60 * 60 * 1000);
+
       await link.save();
     }
 
@@ -173,9 +190,9 @@ exports.servePDF = async (req, res) => {
 exports.getLinkMeta = async (req, res) => {
   const link = await Link.findOne({ id: req.params.id });
   if (!link) return res.status(404).send("Not found");
-  
+
   const currentStatus = computeStatus(link);
-  
+
   // Update status if needed (but don't set firstAccessTime here)
   if (link.status !== currentStatus) {
     link.status = currentStatus;
@@ -183,7 +200,7 @@ exports.getLinkMeta = async (req, res) => {
   }
 
   // REMOVE the markFirstAccess call from here
-  
+
   res.json({
     id: link.id,
     name: link.name,
