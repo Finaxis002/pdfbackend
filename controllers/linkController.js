@@ -88,7 +88,7 @@ exports.servePDF = async (req, res) => {
       // compute expireAt/deleteAfter on first open
       const expireMs = link.firstAccessTime + (link.durationMinutes || 0) * 60 * 1000;
       link.expireAt = new Date(expireMs);
-      link.deleteAfter = new Date(expireMs + 7 * 24 * 60 * 60 * 1000);
+      link.deleteAfter = link.expireAt;
 
       await link.save();
     }
