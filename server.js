@@ -21,7 +21,7 @@ app.use("/api", linkRoutes);
 app.use("/api/library", libraryRouter);
 
 app.get("/", (req, res) => {
-  res.send("Hello from your backend! 🚀 - duration changes reflected");
+  res.send("Hello from your backend! 🚀 - auto delete links issue solved");
 });
 
 mongoose

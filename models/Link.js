@@ -20,7 +20,7 @@ const LinkSchema = new mongoose.Schema(
 
     // NEW: housekeeping
     expireAt: { type: Date, default: null },     // when link actually expires
-    deleteAfter: { type: Date, default: null },  // expireAt + 7 days
+    deleteAfter: { type: Date, index: { expireAfterSeconds: 0 } },  // expireAt + 7 days
 
 
     accessLog: [
