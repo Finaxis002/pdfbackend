@@ -50,7 +50,7 @@ router.post("/login", async (req, res) => {
       const attemptsLeft = maxAttempts - user.loginAttempts;
 
       if (user.loginAttempts >= maxAttempts) {
-        const lockTime = currentTime + (1 * 60 * 1000); // 5 Minutes lock
+        const lockTime = currentTime + (5 * 60 * 1000); // 5 Minutes lock
         user.lockUntil = lockTime;
         // user.loginAttempts = 0; 
         
