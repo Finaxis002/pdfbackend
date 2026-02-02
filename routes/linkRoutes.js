@@ -7,9 +7,14 @@ const { computeStatus } = require("../utils/status");
 const fs = require("fs");
 const path = require("path");
 
+const UPLOAD_DIR =
+  process.env.VERCEL ? "/tmp/uploads" : path.join(process.cwd(), "uploads");
 
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
 
-const upload = multer({ dest: "uploads/" });
+const upload = multer({ dest: UPLOAD_DIR });
 
 // POST /api/upload
 router.post("/upload", upload.single("file"), linkController.uploadPDF);
