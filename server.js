@@ -38,9 +38,15 @@ const corsOptions = {
   origin: "*", // Allow all origins for testing
   credentials: true,
 };
-
 app.use(helmet());
-app.use(cors(corsOptions));
+
+app.use(cors({
+  origin: "*", 
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
+}));
+
 app.use(express.json());
 app.use("/api", linkRoutes);
 app.use("/api/library", libraryRouter);
