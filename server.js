@@ -69,4 +69,8 @@ mongoose
     console.error("❌ MongoDB connection failed:", err.message);
   });
 
-app.listen(8000, () => console.log("Server running on http://localhost:8000"));
+if (require.main === module) {
+  app.listen(8000, () => console.log("Server running on http://localhost:8000"));
+}
+
+module.exports = app;
