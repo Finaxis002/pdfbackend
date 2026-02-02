@@ -10,15 +10,22 @@ const { newLinkId } = require("../utils/id");
 const router = express.Router();
 
 // Multer storage for PERMANENT PDFs ONLY
+const LIBRARY_DIR =
+  process.env.VERCEL ? "/tmp/library-uploads" : path.join(process.cwd(), "library-uploads");
+
+if (!fs.existsSync(LIBRARY_DIR)) {
+  fs.mkdirSync(LIBRARY_DIR, { recursive: true });
+}
+
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(process.cwd(), "library-uploads")),
+  destination: (req, file, cb) => cb(null, LIBRARY_DIR),
   filename: (req, file, cb) => {
-    // keep it simple; you can add uuid if you like
     const ts = Date.now();
     const safe = file.originalname.replace(/\s+/g, "_");
     cb(null, `${ts}__${safe}`);
-  }
+  },
 });
+
 const upload = multer({ storage });
 
 // 1) Upload a permanent PDF
