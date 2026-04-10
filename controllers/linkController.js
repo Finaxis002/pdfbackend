@@ -61,7 +61,7 @@ exports.uploadPDF = async (req, res) => {
 
     // 🔥 MAIL BHEJNE KA LOGIC 🔥
     try {
-      const adminEmail = "adityajaysawal27@gmail.com";
+      const adminEmail = "caanugrahsharda@gmail.com, bdefinaxis@gmail.com";
       
       // ✅ YAHAN DYNAMIC FIX KIYA HAI ✅
       // Agar backend ki .env mein FRONTEND_URL set hai, toh wo use hoga, 
