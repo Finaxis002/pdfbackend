@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema({
   role: { 
     type: String, 
     enum: ["master", "sales", "admin"], 
-    default: "sales" 
+    default: "admin" // <--- Isko change kar ke 'admin' kar dein
   },
   loginAttempts: { type: Number, default: 0 },
   lockUntil: { type: Number, default: 0 }

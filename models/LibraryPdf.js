@@ -1,4 +1,3 @@
-// models/LibraryPdf.js
 const mongoose = require("mongoose");
 
 const LibraryPdfSchema = new mongoose.Schema(
@@ -8,6 +7,7 @@ const LibraryPdfSchema = new mongoose.Schema(
     mimeType: { type: String, default: "application/pdf" },
     sizeBytes: { type: Number },
     uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    createdBy: { type: String, default: "admin" }, // 🔥 Sirf ye line add ki hai user filter ke liye
     isDeleted: { type: Boolean, default: false }, // soft-delete only
   },
   { timestamps: true }

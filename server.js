@@ -7,6 +7,7 @@ const mongoose = require("mongoose");
 const linkRoutes = require("./routes/linkRoutes");
 const libraryRouter = require("./routes/library");
 const authRoutes = require("./routes/authRoutes");
+const userRoutes = require("./routes/userRoutes");
 const app = express();
 const User = require("./models/masteradmin");
 const createInitialAdmin = async () => {
@@ -51,11 +52,11 @@ app.use(express.json());
 app.use("/api", linkRoutes);
 app.use("/api/library", libraryRouter);
 app.use("/api/auth", authRoutes);
-
+app.use("/api/users", userRoutes);
 app.get("/", (req, res) => {
   res.send("Hello from your backend! 🚀 - auto delete links issue solved");
 });
-
+authRoutes.js
 mongoose
   .connect(
     process.env.MONGO_URI ||
