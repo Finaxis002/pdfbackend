@@ -1,83 +1,105 @@
 const express = require("express");
 const router = express.Router();
-const bcrypt = require("bcryptjs"); // 1. Bcrypt import karein
-const User = require("../models/masteradmin");
+const bcrypt = require("bcryptjs");
+const MasterAdmin = require("../models/masteradmin"); 
+const User = require("../models/user"); 
 
-// LOGIN ROUTE
+// STRICT LOGIN ROUTE
 router.post("/login", async (req, res) => {
-  const { username, password, userCaptcha, actualCaptcha } = req.body;
+  // 1. loginType ko destructure karein (frontend toggle se aayega)
+  const { username, password, userCaptcha, actualCaptcha, loginType } = req.body;
 
-  if (!userCaptcha || userCaptcha.toLowerCase() !== actualCaptcha.toLowerCase()) {
+  // Validation: Saare fields check karein (Missing fields ki wajah se 400 error aata hai)
+  if (!username || !password || !userCaptcha || !actualCaptcha || !loginType) {
+    return res.status(400).json({ success: false, message: "Missing required fields!" });
+  }
+
+  // Captcha Validation
+  if (userCaptcha.toLowerCase() !== actualCaptcha.toLowerCase()) {
     return res.status(400).json({ success: false, message: "Invalid Captcha" });
   }
 
   try {
-    const user = await User.findOne({ username });
-    if (!user) {
-      return res.status(401).json({ success: false, message: "User not found" });
+    let foundUser = null;
+
+    // 🔥 STRICT LOGIC: Toggle ke basis par sahi table chunein
+    if (loginType === "admin") {
+      // Admin tab selected hai toh SIRF MasterAdmin table dekho
+      foundUser = await MasterAdmin.findOne({ username });
+    } else if (loginType === "user") {
+      // User tab selected hai toh SIRF User (Sales) table dekho
+      foundUser = await User.findOne({ username });
+    }
+
+    // Agar us specific table mein user nahi mila
+    if (!foundUser) {
+      return res.status(401).json({ 
+        success: false, 
+        message: `This account is not registered as an ${loginType}.` 
+      });
     }
 
     // 2. Check Lockout Status
     const currentTime = Date.now();
-    if (user.lockUntil && currentTime > user.lockUntil) {
-      user.loginAttempts = 0; 
-      user.lockUntil = 0;
-      await user.save();
-      console.log("ℹ️ Lock period over, attempts reset to 0.");
+    if (foundUser.lockUntil && currentTime > foundUser.lockUntil) {
+      foundUser.loginAttempts = 0;
+      foundUser.lockUntil = 0;
+      await foundUser.save();
     }
 
-    if (user.lockUntil && user.lockUntil > currentTime) {
-      const remainingMinutes = Math.ceil((user.lockUntil - currentTime) / 60000);
-      return res.status(403).json({ 
-        success: false, 
-        message: `Account locked. Please try again after ${remainingMinutes} minutes.`,
-        lockUntil: user.lockUntil
+    if (foundUser.lockUntil && foundUser.lockUntil > currentTime) {
+      const remainingMinutes = Math.ceil((foundUser.lockUntil - currentTime) / 60000);
+      return res.status(403).json({
+        success: false,
+        message: `Account locked. Try after ${remainingMinutes} minutes.`,
+        lockUntil: foundUser.lockUntil
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    // 3. Password Verification
+    const isMatch = await bcrypt.compare(password, foundUser.password);
 
     if (isMatch) {
-      user.loginAttempts = 0;
-      user.lockUntil = 0;
-      await user.save();
+      foundUser.loginAttempts = 0;
+      foundUser.lockUntil = 0;
+      await foundUser.save();
 
-      return res.json({ success: true, role: user.role, username: user.username });
-   } else {
-      user.loginAttempts += 1;
-
+      return res.json({ 
+        success: true, 
+        role: foundUser.role, 
+        username: foundUser.username 
+      });
+    } else {
+      // Wrong Password Logic
+      foundUser.loginAttempts = (foundUser.loginAttempts || 0) + 1;
       const maxAttempts = 5;
-      const attemptsLeft = maxAttempts - user.loginAttempts;
-
-      if (user.loginAttempts >= maxAttempts) {
-        const lockTime = currentTime + (5 * 60 * 1000); // 5 Minutes lock
-        user.lockUntil = lockTime;
-        // user.loginAttempts = 0; 
-        
-        await user.save();
-        return res.status(403).json({ 
-          success: false, 
-          message: "Too many failed attempts. Account locked for 5 minutes.", 
-          lockUntil: lockTime 
+      
+      if (foundUser.loginAttempts >= maxAttempts) {
+        foundUser.lockUntil = currentTime + (5 * 60 * 1000); // 5 min lock
+        await foundUser.save();
+        return res.status(403).json({
+          success: false,
+          message: "Too many failed attempts. Account locked for 5 minutes.",
+          lockUntil: foundUser.lockUntil
         });
       } else {
-        await user.save();
-        return res.status(401).json({ 
-          success: false, 
-          message: `Wrong Password. ${attemptsLeft} attempts remaining.` 
+        await foundUser.save();
+        return res.status(401).json({
+          success: false,
+          message: `Wrong Password. ${maxAttempts - foundUser.loginAttempts} attempts left.`
         });
       }
     }
   } catch (err) {
+    console.error("❌ Login Error:", err);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 });
 
-// GET ALL USERS EXCEPT MASTER
+// GET ALL USERS
 router.get("/all-users", async (req, res) => {
   try {
-    // Role 'master' ko filter out kar rahe hain
-    const users = await User.find({ role: { $ne: "master" } }); 
+    const users = await User.find().select("-password"); 
     res.json(users);
   } catch (err) {
     res.status(500).json({ message: err.message });

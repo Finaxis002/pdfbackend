@@ -1,4 +1,3 @@
-// routes/library.js
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
@@ -38,6 +37,7 @@ router.post("/pdfs", upload.single("pdf"), async (req, res) => {
       sizeBytes: req.file.size,
       mimeType: req.file.mimetype || "application/pdf",
       uploadedBy: req.user?._id || null, // optional
+      createdBy: req.body.createdBy || "admin", // 🔥 FRONTEND WALA USERNAME YAHAN SAVE HOGA
     });
     res.json({ pdf: doc });
   } catch (e) {
@@ -81,14 +81,14 @@ router.post("/links", async (req, res) => {
     const {
       libraryPdfId, name,
       mode, startTime, endTime, durationMinutes,
-      username, password,
+      username, password, createdBy // 🔥 Yahan se createdBy receive kiya
     } = req.body;
 
     const lib = await LibraryPdf.findById(libraryPdfId);
     if (!lib || lib.isDeleted) return res.status(404).json({ message: "Permanent PDF not found" });
 
     const linkDoc = await Link.create({
-         id: newLinkId(),  
+      id: newLinkId(),  
       pdfSource: "library",
       libraryPdfId,
       name: name || lib.name,
@@ -99,7 +99,7 @@ router.post("/links", async (req, res) => {
       username,
       password,
       firstAccessTime: 0,
-      // keep your other fields as-is
+      createdBy: createdBy || "admin" // 🔥 Link banate time user ka naam save kar liya
     });
 
     // Return both id and _id, since you use a custom id in frontend sometimes

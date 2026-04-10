@@ -9,27 +9,24 @@ const LinkSchema = new mongoose.Schema(
     startTime: Number,
     endTime: Number,
     filePath: String,
-    status: { type: String, default: "Pending" }, // new field
-    username: { type: String }, // new field
-    durationMinutes: Number, // null/undefined if not using duration mode
-    firstAccessTime: Number, // when the user first accesses the link (ms timestamp)
-    mode: { type: String, enum: ["window", "duration"], default: "window" }, // distinguish mode
-    // models/Link.js  (add these fields to your existing schema)
+    status: { type: String, default: "Pending" }, 
+    username: { type: String }, 
+    durationMinutes: Number, 
+    firstAccessTime: Number, 
+    mode: { type: String, enum: ["window", "duration"], default: "window" }, 
     pdfSource: { type: String, enum: ["ephemeral", "library"], default: "ephemeral" },
     libraryPdfId: { type: mongoose.Schema.Types.ObjectId, ref: "LibraryPdf" },
-
-    // NEW: housekeeping
-    expireAt: { type: Date, default: null },     // when link actually expires
-    deleteAfter: { type: Date, index: { expireAfterSeconds: 0 } },  // expireAt + 7 days
-
-
+    expireAt: { type: Date, default: null },     
+    deleteAfter: { type: Date, index: { expireAfterSeconds: 0 } },  
     accessLog: [
       {
-        // for tracking
-        timestamp: Number, // ms since epoch
+        timestamp: Number, 
         username: String,
       },
     ],
+    
+    // 🔥 BAS YEH EK LINE MISSING THI 🔥
+    createdBy: { type: String, default: "admin" } 
   },
   {
     timestamps: true,
