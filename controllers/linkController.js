@@ -12,7 +12,7 @@ async function markFirstAccess(link) {
   }
 }
 
-// 1. TEMPORARY UPLOAD (Aapka existing function - untouched)
+// 1. TEMPORARY UPLOAD
 exports.uploadPDF = async (req, res) => {
   try {
     const { originalname, path: filePath } = req.file;
@@ -62,7 +62,13 @@ exports.uploadPDF = async (req, res) => {
     // 🔥 MAIL BHEJNE KA LOGIC 🔥
     try {
       const adminEmail = "adityajaysawal27@gmail.com";
-      const fullUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/view/${id}`;
+      
+      // ✅ YAHAN DYNAMIC FIX KIYA HAI ✅
+      // Agar backend ki .env mein FRONTEND_URL set hai, toh wo use hoga, 
+      // nahi toh automatically default production URL utha lega.
+      // Aap local test ke liye apni .env mein FRONTEND_URL=http://localhost:8124 daal do.
+      const baseUrl = process.env.FRONTEND_URL || 'https://pdfviewer.sharda.co.in';
+      const fullUrl = `${baseUrl}/view/${id}`;
       
       sendLinkEmail(adminEmail, {
         username: username,
@@ -92,7 +98,7 @@ exports.uploadPDF = async (req, res) => {
   }
 };
 
-// 2. PERMANENT LIBRARY LINK (Ab Email bhi jayega)
+// 2. PERMANENT LIBRARY LINK
 exports.createLinkFromLibrary = async (req, res) => {
   try {
     const { 
@@ -127,10 +133,13 @@ exports.createLinkFromLibrary = async (req, res) => {
     linkDoc.status = require("../utils/status").computeStatus(linkDoc);
     await Link.create(linkDoc);
 
-    // 🔥 1. MAIL BHEJNE KA LOGIC (Library Links ke liye add kiya) 🔥
+    // 🔥 MAIL BHEJNE KA LOGIC (Library Links) 🔥
     try {
       const adminEmail = "adityajaysawal27@gmail.com";
-      const fullUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/view/${id}`;
+      
+      // ✅ YAHAN BHI DYNAMIC FIX KIYA HAI ✅
+      const baseUrl = process.env.FRONTEND_URL || 'https://pdfviewer.sharda.co.in';
+      const fullUrl = `${baseUrl}/view/${id}`;
       
       sendLinkEmail(adminEmail, {
         username: username,
@@ -144,7 +153,7 @@ exports.createLinkFromLibrary = async (req, res) => {
       console.error("❌ Library Mail error:", mailErr);
     }
 
-    // 🔥 2. NOTIFICATION Logic
+    // 🔥 NOTIFICATION Logic
     if (createdBy && createdBy !== "admin" && createdBy !== "master_admin") {
       try {
         await Notification.create({
