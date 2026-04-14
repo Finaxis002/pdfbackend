@@ -33,24 +33,33 @@ const createInitialAdmin = async () => {
   }
 };
 
+const allowedOrigins = [
+  "https://pdfviewer.sharda.co.in",  // production frontend
+  "http://localhost:3000",            // local dev
+  "http://localhost:8124",            // local dev alternate
+];
+
 app.options("*", cors());
 
-const corsOptions = {
-  origin: "*", // Allow all origins for testing
-  credentials: true,
-};
 app.use(cors({
-  origin: "*", 
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS blocked: " + origin));
+    }
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true
+  credentials: true,
 }));
 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: "100mb" }));
+app.use(express.urlencoded({ limit: "100mb", extended: true }));
 app.use("/api", linkRoutes);
 app.use("/api/library", libraryRouter);
 app.use("/api/auth", authRoutes);
@@ -58,7 +67,7 @@ app.use("/api/users", userRoutes);
 app.get("/", (req, res) => {
   res.send("Hello from your backend! 🚀 - auto delete links issue solved");
 });
-authRoutes.js
+// authRoutes.js
 mongoose
   .connect(
     process.env.MONGO_URI ||
