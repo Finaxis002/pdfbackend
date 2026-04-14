@@ -33,21 +33,19 @@ const createInitialAdmin = async () => {
   }
 };
 
-app.options("*", cors());
+// app.options("*", cors());
 
 const corsOptions = {
   origin: "*", // Allow all origins for testing
   credentials: true,
 };
+app.use(helmet());
+
 app.use(cors({
   origin: "*", 
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
-}));
-
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
 app.use(express.json());
