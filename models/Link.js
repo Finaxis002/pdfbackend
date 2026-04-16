@@ -26,7 +26,8 @@ const LinkSchema = new mongoose.Schema(
     ],
     
     // 🔥 BAS YEH EK LINE MISSING THI 🔥
-    createdBy: { type: String, default: "admin" } 
+    createdBy: { type: String, default: "admin" },
+    assignedTo: { type: String, default: "" },
   },
   {
     timestamps: true,

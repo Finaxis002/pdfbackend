@@ -17,9 +17,9 @@ exports.uploadPDF = async (req, res) => {
   try {
     const { originalname, path: filePath } = req.file;
     const {
-      name, password, startTime, endTime, username, mode, durationMinutes, createdBy
-    } = req.body;
-
+      name, password, startTime, endTime, username, mode, durationMinutes, createdBy, assignedTo
+} = req.body;
+console.log("👉 AssignedTo:", assignedTo);
     console.log("====================================");
     console.log("➡️ NAYA LINK CREATE HO RAHA HAI...");
     console.log("👉 Form Data aya:", req.body);
@@ -39,6 +39,7 @@ exports.uploadPDF = async (req, res) => {
       mode: mode || "window",
       accessLog: [],
       createdBy: createdBy || "admin",
+      assignedTo: assignedTo || "",
     };
 
     if (linkDoc.mode === "duration") {
@@ -59,14 +60,8 @@ exports.uploadPDF = async (req, res) => {
 
     await Link.create(linkDoc);
 
-    // 🔥 MAIL BHEJNE KA LOGIC 🔥
     try {
       const adminEmail = "caanugrahsharda@gmail.com, bdefinaxis@gmail.com";
-      
-      // ✅ YAHAN DYNAMIC FIX KIYA HAI ✅
-      // Agar backend ki .env mein FRONTEND_URL set hai, toh wo use hoga, 
-      // nahi toh automatically default production URL utha lega.
-      // Aap local test ke liye apni .env mein FRONTEND_URL=http://localhost:8124 daal do.
       const baseUrl = process.env.FRONTEND_URL || 'https://pdfviewer.sharda.co.in';
       const fullUrl = `${baseUrl}/view/${id}`;
       
@@ -103,7 +98,7 @@ exports.createLinkFromLibrary = async (req, res) => {
   try {
     const { 
       libraryPdfId, name, username, password, mode, 
-      durationMinutes, startTime, endTime, createdBy 
+      durationMinutes, startTime, endTime, createdBy, assignedTo 
     } = req.body;
 
     const id = Math.random().toString(36).substr(2, 9);
@@ -118,6 +113,7 @@ exports.createLinkFromLibrary = async (req, res) => {
       mode: mode || "window",
       createdBy: createdBy || "admin", 
       accessLog: [],
+      assignedTo: assignedTo || "",
     };
 
     if (linkDoc.mode === "duration") {

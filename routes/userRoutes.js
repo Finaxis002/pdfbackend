@@ -45,16 +45,24 @@ router.get("/all-summary", async (req, res) => {
     const userSummary = await Promise.all(
       users.map(async (user) => {
         const userLinks = await Link.find({ createdBy: user.username }).select("name id createdAt");
-        
-        return {
-          _id: user._id,
-          username: user.username,
-          email: user.email,
-          role: user.role,
-          joinedAt: user.createdAt,
-          totalLinks: userLinks.length,
-          links: userLinks 
-        };
+
+const assignedLinksCount = await Link.countDocuments({
+  $or: [
+    { assignedTo: { $regex: `(^|,)\\s*${user.username}\\s*(,|$)`, $options: "i" } },
+    { username: user.username }
+  ]
+});
+
+return {
+  _id: user._id,
+  username: user.username,
+  email: user.email,
+  role: user.role,
+  joinedAt: user.createdAt,
+  totalLinks: userLinks.length,
+  assignedLinksCount,
+  links: userLinks 
+};
       })
     );
 
