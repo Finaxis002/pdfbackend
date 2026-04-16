@@ -81,7 +81,7 @@ router.post("/links", async (req, res) => {
     const {
       libraryPdfId, name,
       mode, startTime, endTime, durationMinutes,
-      username, password, createdBy // 🔥 Yahan se createdBy receive kiya
+      username, password, createdBy, assignedTo
     } = req.body;
 
     const lib = await LibraryPdf.findById(libraryPdfId);
@@ -99,7 +99,8 @@ router.post("/links", async (req, res) => {
       username,
       password,
       firstAccessTime: 0,
-      createdBy: createdBy || "admin" // 🔥 Link banate time user ka naam save kar liya
+      createdBy: createdBy || "admin",
+      assignedTo: assignedTo || ""
     });
 
     // Return both id and _id, since you use a custom id in frontend sometimes

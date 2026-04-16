@@ -16,54 +16,43 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 
 const upload = multer({ dest: UPLOAD_DIR });
 
-// ==========================================
-// 1. UPLOAD PDF (Link Create Karna) - UPDATE KIYA HAI
-// ==========================================
-// Note: Isko theek se kaam karne ke liye aapke frontend (AddLinkDialog) 
-// se 'createdBy' field aana chahiye formData mein.
 router.post("/upload", upload.single("file"), linkController.uploadPDF);
-
-
-// GET /api/file/:id
 router.get("/file/:id", linkController.servePDF);
-
-// GET /api/link/:id
 router.get("/link/:id", linkController.getLinkMeta);
-
 router.post("/library/links", linkController.createLinkFromLibrary);
+
 // ==========================================
-// GET ALL LINKS (Role ke hisab se Filter)
+// GET ALL LINKS
 // ==========================================
 router.post("/all-links", async (req, res) => {
   try {
-    const { role, username } = req.body; 
-    
-    // 🔥 JASOOS 2: Dekhte hain Dashboard se kya request aayi
+    const { role, username } = req.body;
+
     console.log("====================================");
     console.log("➡️ DASHBOARD NE LINKS MAANGE!");
-    console.log("👉 Maangne wale ka Role:", role);
-    console.log("👉 Maangne wale ka Username:", username);
+    console.log("👉 Role:", role);
+    console.log("👉 Username:", username);
 
     let filterCondition = {};
-    
-    if ((role === "sales" || role === "user") && username) {
-      filterCondition = { createdBy: username }; 
-      console.log("🔍 FILTER LAG GAYA:", filterCondition);
+
+    if (role !== "admin" && role !== "master_admin" && role !== "master") {
+      filterCondition = {
+        $or: [
+          { assignedTo: { $regex: `(^|,)\\s*${username}\\s*(,|$)`, $options: "i" } },
+          { username: username }
+        ]
+      };
+      console.log("🔍 FILTER:", JSON.stringify(filterCondition));
     } else {
-      console.log("🔓 KOI FILTER NAHI (Admin mode - Sab dikhega)");
+      console.log("🔓 ADMIN - Sab dikhega");
     }
 
     let links = await Link.find(filterCondition);
-    console.log("📦 Database se Total Links mile:", links.length);
-    console.log("====================================");
 
-    // ... Baki ka code same rahega (Promise.all wala)
-
-    // Baki ka status update karne wala logic same rahega...
     await Promise.all(
       links.map(async (link) => {
         if (link.mode === "window") {
-          const newStatus = computeStatus(link); 
+          const newStatus = computeStatus(link);
           if (link.status !== newStatus) {
             link.status = newStatus;
             await link.save();
@@ -72,7 +61,6 @@ router.post("/all-links", async (req, res) => {
       })
     );
 
-    // Updated links wapas fetch karein
     links = await Link.find(filterCondition).sort({ createdAt: -1 });
 
     const linksWithStatus = links.map((link) => ({
@@ -89,7 +77,8 @@ router.post("/all-links", async (req, res) => {
       status: link.status,
       createdAt: link.createdAt,
       updatedAt: link.updatedAt,
-      createdBy: link.createdBy 
+      createdBy: link.createdBy,
+      assignedTo: link.assignedTo || ""
     }));
 
     res.json({ success: true, links: linksWithStatus });
@@ -101,7 +90,7 @@ router.post("/all-links", async (req, res) => {
 });
 
 // ==========================================
-// 3. DELETE LINK
+// DELETE LINK
 // ==========================================
 router.delete("/link/:id", async (req, res) => {
   try {
@@ -110,7 +99,6 @@ router.delete("/link/:id", async (req, res) => {
     if (!link) link = await Link.findById(id);
     if (!link) return res.status(404).json({ message: "Not found" });
 
-    // If ephemeral, optionally delete its file from /ephemeral-uploads
     if (link.pdfSource !== "library") {
       try {
         if (link.filePath && fs.existsSync(link.filePath)) {
@@ -125,21 +113,50 @@ router.delete("/link/:id", async (req, res) => {
     res.status(500).json({ message: e.message });
   }
 });
+
 // ==========================================
-// 🔥 NOTIFICATION APIs 🔥
+// NOTIFICATIONS
 // ==========================================
 
-// 1. Saari notifications laane ke liye
+// GET - Sabhi notifications fetch karo
 router.get("/notifications", async (req, res) => {
   try {
-    const notifications = await Notification.find().sort({ createdAt: -1 }).limit(20);
+    const notifications = await Notification.find()
+      .sort({ createdAt: -1 })
+      .limit(20);
     res.json({ success: true, notifications });
   } catch (error) {
     res.status(500).json({ success: false });
   }
 });
 
-// 2. Notifications ko 'Read' mark karne ke liye
+// ✅ POST - Nayi notification save karo (copy event ke liye)
+router.post("/notifications", async (req, res) => {
+  try {
+    const { message, type, linkId, linkName, copiedBy } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ success: false, message: "Message is required" });
+    }
+
+    const notification = new Notification({
+      message,
+      isRead: false,
+      createdAt: new Date(),
+    });
+
+    await notification.save();
+
+    console.log(`🔔 NEW NOTIFICATION: ${message}`);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Notification save error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// MARK ALL AS READ
 router.post("/notifications/mark-read", async (req, res) => {
   try {
     await Notification.updateMany({ isRead: false }, { isRead: true });
@@ -149,31 +166,25 @@ router.post("/notifications/mark-read", async (req, res) => {
   }
 });
 
-module.exports = router; // <-- Aapki file mein ye pehle se hoga
-
 // ==========================================
-// 4. VALIDATE LOGIN (PDF kholne ke liye)
+// VALIDATE LOGIN
 // ==========================================
 router.post("/validate-login", async (req, res) => {
   const { username, password, linkId } = req.body;
 
-  // Validate input
   if (!username || !password || !linkId) {
     return res.status(400).json({ success: false, message: "Missing parameters" });
   }
 
-  // Find the link record
   const link = await Link.findOne({ username, id: linkId });
   if (!link) {
     return res.status(401).json({ success: false, message: "Invalid username or link not found" });
   }
 
-  // Check password
   if (link.password !== password) {
     return res.status(401).json({ success: false, message: "Incorrect password" });
   }
 
-  // For duration mode links, set firstAccessTime if not already set
   if (link.mode === "duration" && !link.firstAccessTime) {
     link.firstAccessTime = Date.now();
     const expireMs = link.firstAccessTime + (link.durationMinutes || 0) * 60 * 1000;
@@ -182,15 +193,14 @@ router.post("/validate-login", async (req, res) => {
     await link.save();
   }
 
-  // Check link status
   const status = computeStatus(link);
   if (status === "Expired") {
     return res.status(403).json({ success: false, message: "Link has expired" });
   }
 
-  return res.status(200).json({ 
+  return res.status(200).json({
     success: true,
-    firstAccessTime: link.firstAccessTime 
+    firstAccessTime: link.firstAccessTime
   });
 });
 
