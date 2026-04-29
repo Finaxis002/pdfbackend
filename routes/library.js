@@ -9,8 +9,9 @@ const { newLinkId } = require("../utils/id");
 const router = express.Router();
 
 // Multer storage for PERMANENT PDFs ONLY
-const LIBRARY_DIR =
-  process.env.VERCEL ? "/tmp/library-uploads" : path.join(process.cwd(), "library-uploads");
+const LIBRARY_DIR = process.env.VERCEL
+  ? "/tmp/library-uploads"
+  : path.join(process.cwd(), "library-uploads");
 
 if (!fs.existsSync(LIBRARY_DIR)) {
   fs.mkdirSync(LIBRARY_DIR, { recursive: true });
@@ -49,7 +50,7 @@ router.post("/pdfs", upload.single("pdf"), async (req, res) => {
 router.get("/pdfs", async (req, res) => {
   try {
     const q = (req.query.q || "").trim();
-    const filter = { isDeleted: false };
+    const filter = { isDeleted: { $ne: true } };
     if (q) filter.name = { $regex: q, $options: "i" };
 
     const pdfs = await LibraryPdf.find(filter).sort({ createdAt: -1 }).lean();
@@ -63,9 +64,14 @@ router.get("/pdfs", async (req, res) => {
 router.delete("/pdfs/:id", async (req, res) => {
   try {
     const id = req.params.id;
-    const inUse = await Link.countDocuments({ pdfSource: "library", libraryPdfId: id });
+    const inUse = await Link.countDocuments({
+      pdfSource: "library",
+      libraryPdfId: id,
+    });
     if (inUse > 0) {
-      return res.status(409).json({ message: "PDF is referenced by links. Delete those links first." });
+      return res.status(409).json({
+        message: "PDF is referenced by links. Delete those links first.",
+      });
     }
     // Soft delete (safer)
     await LibraryPdf.findByIdAndUpdate(id, { isDeleted: true });
@@ -74,33 +80,80 @@ router.delete("/pdfs/:id", async (req, res) => {
     res.status(500).json({ message: e.message });
   }
 });
-
+// Assign users to a library PDF
+router.patch("/pdfs/:id/assign", async (req, res) => {
+  try {
+    const { assignedTo } = req.body; // array of usernames
+    await LibraryPdf.findByIdAndUpdate(req.params.id, {
+      assignedTo: Array.isArray(assignedTo) ? assignedTo.join(",") : assignedTo,
+    });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+});
 // 4) Create a LINK that references a permanent PDF
 router.post("/links", async (req, res) => {
   try {
     const {
-      libraryPdfId, name,
-      mode, startTime, endTime, durationMinutes,
-      username, password, createdBy, assignedTo
-    } = req.body;
-
-    const lib = await LibraryPdf.findById(libraryPdfId);
-    if (!lib || lib.isDeleted) return res.status(404).json({ message: "Permanent PDF not found" });
-
-    const linkDoc = await Link.create({
-      id: newLinkId(),  
-      pdfSource: "library",
       libraryPdfId,
-      name: name || lib.name,
+      name,
       mode,
       startTime,
       endTime,
       durationMinutes,
       username,
       password,
+      createdBy,
+      assignedTo,
+    } = req.body;
+
+    const lib = await LibraryPdf.findById(libraryPdfId);
+    if (!lib || lib.isDeleted)
+      return res.status(404).json({ message: "Permanent PDF not found" });
+
+    // createdBy se role check reliable nahi hai, isliye role alag bhejo
+    console.log("🔥 REQ BODY:", req.body);
+    const isAdmin = ["admin", "master_admin", "master"].includes(
+      req.body.role || "",
+    );
+    console.log(
+      "🔥 isAdmin:",
+      isAdmin,
+      "| role:",
+      req.body.role,
+      "| createdBy:",
+      createdBy,
+    );
+
+    const safeDuration =
+      mode === "duration" && !isAdmin
+        ? Math.min(Number(durationMinutes), 60)
+        : durationMinutes;
+
+    if (mode === "window" && !isAdmin && startTime && endTime) {
+      const diffMs = Number(endTime) - Number(startTime);
+      if (diffMs > 60 * 60 * 1000) {
+        return res
+          .status(400)
+          .json({ message: "Maximum 60 minutes window allowed." });
+      }
+    }
+
+    const linkDoc = await Link.create({
+      id: newLinkId(),
+      pdfSource: "library",
+      libraryPdfId,
+      name: name || lib.name,
+      mode,
+      startTime,
+      endTime,
+      durationMinutes: safeDuration,
+      username,
+      password,
       firstAccessTime: 0,
       createdBy: createdBy || "admin",
-      assignedTo: assignedTo || ""
+      assignedTo: assignedTo || "",
     });
 
     // Return both id and _id, since you use a custom id in frontend sometimes
