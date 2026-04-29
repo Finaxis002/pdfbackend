@@ -8,6 +8,7 @@ const LibraryPdfSchema = new mongoose.Schema(
     sizeBytes: { type: Number },
     uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     createdBy: { type: String, default: "admin" }, // 🔥 Sirf ye line add ki hai user filter ke liye
+    assignedTo: { type: String, default: "" },
     isDeleted: { type: Boolean, default: false }, // soft-delete only
   },
   { timestamps: true }
